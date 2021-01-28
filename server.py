@@ -3,6 +3,7 @@ import socketserver
 import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
+# Modifications Copyright 2021 Robert MacGillivray
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +24,8 @@ import os
 #
 # http://docs.python.org/2/library/socketserver.html
 #
-# run: python freetests.py
 
+# run: python freetests.py
 # try: curl -v -X GET http://127.0.0.1:8080/
 
 
