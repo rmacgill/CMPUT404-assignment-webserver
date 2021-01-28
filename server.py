@@ -1,5 +1,6 @@
 #  coding: utf-8 
 import socketserver
+import os
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -31,16 +32,81 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        print ("---Receive---\n{}\n".format(self.data))
+
+        # Indicates a malformed request
+        if not self.data:
+            returnData = "HTTP/1.1 400 Bad Request"
+            print("---Return---\n{}\n".format(returnData))
+            self.request.sendall(returnData.encode())
+            return
+
+        # Get some info from the header and split it into chunks
+        reqInfo = str(self.data, "utf-8").splitlines()[0].split(' ')
+
+        # We only handle GET requests
+        if not reqInfo[0] == "GET":
+            returnData = "HTTP/1.1 405 Method Not Allowed"
+            print("---Return---\n{}\n".format(returnData))
+            self.request.sendall(returnData.encode())
+            return
+
+        # All of our content is in the WWW folder
+        returnPath = "www" + reqInfo[1]
+
+        # If we're looking in a folder without a file specified, return index.html
+        if os.path.isdir(returnPath):
+            # Check for trailing slash, redirect if not present
+            if returnPath[-1] == "/" or returnPath[-1] == "\\":
+                returnPath = os.path.join(returnPath, "index.html")
+            else:
+                returnData = "HTTP/1.1 302 Found\r\n"
+                returnData += "Location: {}".format(reqInfo[1] + '/')
+                print("---Return---\n{}\n".format(returnData))
+                self.request.sendall(returnData.encode())
+                return
+
+        # Content wasn't found at that path
+        if not os.path.exists(returnPath) or not os.path.isfile(returnPath):
+            returnData = "HTTP/1.1 404 Not Found"
+            print("---Return---\n{}\n".format(returnData))
+            self.request.sendall(returnData.encode())
+            return
+
+        # Use extensions to determine content types
+        fileExt = os.path.splitext(returnPath)[1]
+        
+        # We're returning something, so request is good (need a quick check to see if we actually did a 302 redirect)
+        returnData = "HTTP/1.1 200 OK\r\n"
+
+        # HTML mime-type
+        if fileExt.lower() == ".html":
+            returnData += "Content-Type: text/html\r\n"
+        # CSS mime-type
+        elif fileExt.lower() == ".css":
+            returnData += "Content-Type: text/css\r\n"
+        # Treat everything else as text
+        else:
+            returnData += "Content-Type: text/plain\r\n"
+
+        # Need a line break between header and content
+        returnData += "\r\n"
+
+        # Add file content to our return content
+        indexFile = open(returnPath, "r")
+        for line in indexFile:
+            returnData += line
+
+        print("---Return---\n{}\n".format(returnData))
+        self.request.sendall(returnData.encode())
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
 
     socketserver.TCPServer.allow_reuse_address = True
+
     # Create the server, binding to localhost on port 8080
     server = socketserver.TCPServer((HOST, PORT), MyWebServer)
-
-    # Activate the server; this will keep running until you
+    
     # interrupt the program with Ctrl-C
     server.serve_forever()
