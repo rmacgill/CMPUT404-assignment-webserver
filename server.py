@@ -74,7 +74,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         # Prepend our folder last, and resolve relative pathing
         # solves other path resolution and security issues
-        returnPath = "./www" + os.path.abspath(returnPath)
+        returnPath = "./www" + os.path.normpath(returnPath)
         print("PATH: {}".format(returnPath))
 
         # Content wasn't found at that path
