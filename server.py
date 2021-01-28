@@ -51,14 +51,20 @@ class MyWebServer(socketserver.BaseRequestHandler):
             self.request.sendall(returnData.encode())
             return
 
-        # All of our content is in the WWW folder
-        returnPath = "www" + reqInfo[1]
+        # Start with the address we were given
+        returnPath = reqInfo[1]
+
+        # Use extensions to determine content types and whether something is
+        # a file (redirect under assumption that extensionless path without
+        # trailing slash was supposed to be a path)
+        fileExt = os.path.splitext(returnPath)[1]
 
         # If we're looking in a folder without a file specified, return index.html
-        if os.path.isdir(returnPath):
+        if not fileExt:
             # Check for trailing slash, redirect if not present
             if returnPath[-1] == "/" or returnPath[-1] == "\\":
-                returnPath = os.path.join(returnPath, "index.html")
+                returnPath += "index.html"
+                fileExt = ".html"
             else:
                 returnData = "HTTP/1.1 302 Found\r\n"
                 returnData += "Location: {}".format(reqInfo[1] + '/')
@@ -66,15 +72,17 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 self.request.sendall(returnData.encode())
                 return
 
+        # Prepend our folder last, and resolve relative pathing
+        # solves other path resolution and security issues
+        returnPath = "./www" + os.path.abspath(returnPath)
+        print("PATH: {}".format(returnPath))
+
         # Content wasn't found at that path
         if not os.path.exists(returnPath) or not os.path.isfile(returnPath):
             returnData = "HTTP/1.1 404 Not Found"
             print("---Return---\n{}\n".format(returnData))
             self.request.sendall(returnData.encode())
             return
-
-        # Use extensions to determine content types
-        fileExt = os.path.splitext(returnPath)[1]
         
         # We're returning something, so request is good (need a quick check to see if we actually did a 302 redirect)
         returnData = "HTTP/1.1 200 OK\r\n"
